@@ -1,0 +1,8 @@
+{
+  "name": "Our Romantic Diary",
+  "description": "A private shared space for Chirag & Sneha to cherish their journey with memories, photos, and moods.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

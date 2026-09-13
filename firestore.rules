@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // User Profile Rules
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        incoming().keys().hasAll(['uid', 'email', 'createdAt']) &&
+        incoming().uid == userId &&
+        incoming().email == request.auth.token.email &&
+        incoming().createdAt == request.time
+      );
+      allow update: if isSignedIn() && request.auth.uid == userId && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'diaryId', 'lastUpdated'])
+      );
+    }
+
+    // Diary Rules
+    match /diaries/{diaryId} {
+      function isDiaryMember() {
+        // Use get() to check parent diary membership for subcollections
+        let diary = get(/databases/$(database)/documents/diaries/$(diaryId)).data;
+        return isSignedIn() && (request.auth.uid in diary.members);
+      }
+
+      function isMember() {
+        // Use resource.data for the diary document itself
+        return isSignedIn() && (request.auth.uid in resource.data.members);
+      }
+
+      // Allow get for any signed in user so they can find the diary via invite code
+      // But restrict list to members only
+      allow get: if isSignedIn();
+      allow list: if isMember();
+      
+      allow create: if isSignedIn() && isValidId(diaryId) && (
+        incoming().keys().hasAll(['id', 'diaryName', 'createdBy', 'members', 'memberNames', 'inviteCode', 'pinHash', 'createdAt', 'lastUpdated']) &&
+        incoming().createdBy == request.auth.uid &&
+        incoming().members.size() == 1 &&
+        incoming().members[0] == request.auth.uid &&
+        incoming().diaryName is string && incoming().diaryName.size() <= 100 &&
+        incoming().pinHash is string && incoming().pinHash.size() == 64 &&
+        incoming().createdAt == request.time
+      );
+
+      allow update: if isSignedIn() && (
+        // Case 1: Already a member updating settings
+        (request.auth.uid in resource.data.members && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['backgroundImage', 'diaryName', 'pinHash', 'lastUpdated'])) ||
+        
+        // Case 2: New member joining via invite (must be second member)
+        (existing().members.size() == 1 && 
+         incoming().members.size() == 2 && 
+         incoming().members[1] == request.auth.uid &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['members', 'memberNames', 'lastUpdated']))
+      );
+
+      // Entries within Diary
+      match /entries/{entryId} {
+        function isValidDiaryEntry(data) {
+          return data.keys().hasAll(['text', 'authorId', 'authorName', 'mood', 'createdAt', 'imageUrls', 'stickers', 'isFavorite']) &&
+                 data.text is string && data.text.size() <= 10000 &&
+                 data.authorId == request.auth.uid &&
+                 data.authorName is string &&
+                 data.mood is string &&
+                 data.imageUrls is list &&
+                 data.stickers is list &&
+                 data.isFavorite is bool &&
+                 data.createdAt == request.time;
+        }
+
+        allow read, list: if isDiaryMember();
+        allow create: if isDiaryMember() && isValidId(entryId) && isValidDiaryEntry(incoming());
+        allow update: if isDiaryMember() && (
+          (incoming().diff(existing()).affectedKeys().hasOnly(['text', 'mood', 'imageUrls', 'stickers', 'isFavorite'])) &&
+          incoming().authorId == existing().authorId
+        );
+        allow delete: if isDiaryMember();
+      }
+    }
+    
+    // Invites collection (optional helper for code mapping)
+    match /invites/{inviteCode} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (
+        incoming().diaryId is string &&
+        incoming().createdBy == request.auth.uid
+      );
+    }
+  }
+}

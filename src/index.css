@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Special+Elite&family=Outfit:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Special Elite", "American Typewriter", "Courier New", Courier, monospace;
+  --font-serif: "Special Elite", "American Typewriter", "Courier New", Courier, monospace;
+  --font-typewriter: "Special Elite", "American Typewriter", "Courier New", Courier, monospace;
+  
+  --color-romantic-base: #FFC0CB;
+  --color-romantic-light: #FFF5F7;
+  --color-romantic-accent: #FF6B6B;
+  --color-diary-text: #5D4037;
+  --color-floral-green: #A8C69F;
+}
+
+@layer base {
+  body {
+    @apply bg-romantic-light text-diary-text font-sans antialiased;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+.glass-card {
+  @apply bg-white/60 backdrop-blur-lg border border-white shadow-xl rounded-[2.5rem];
+}
+
+.serif-display {
+  @apply font-serif tracking-tight font-semibold;
+}
+
+.paper-texture {
+  background-color: #fcfaf2;
+  background-image: 
+    linear-gradient(90deg, rgba(230, 220, 200, 0.1) 0%, transparent 10%, transparent 90%, rgba(230, 220, 200, 0.1) 100%),
+    url("https://www.transparenttextures.com/patterns/old-mathematics.png");
+}
+
+.diary-book-container {
+  perspective: 2000px;
+  transform-style: preserve-3d;
+}
+
+.book-shadow {
+  box-shadow: 
+    20px 20px 60px rgba(0,0,0,0.3),
+    0 10px 30px rgba(0,0,0,0.2),
+    inset 0 0 100px rgba(0,0,0,0.05);
+}
+
+.spine-gradient {
+  background: linear-gradient(to right, 
+    rgba(0,0,0,0.4) 0%, 
+    rgba(0,0,0,0.2) 20%, 
+    rgba(255,255,255,0.1) 50%, 
+    rgba(0,0,0,0.2) 80%, 
+    rgba(0,0,0,0.4) 100%);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+.page-inner-shadow-right {
+  box-shadow: inset 10px 0 20px -10px rgba(0,0,0,0.1);
+}
+
+.page-inner-shadow-left {
+  box-shadow: inset -10px 0 20px -10px rgba(0,0,0,0.1);
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.typewriter {
+  @apply font-typewriter tracking-tight;
+}
+
+.romantic-gradient {
+  background: linear-gradient(135deg, #FFC0CB 0%, #FFF5F7 50%, #FFD1DC 100%);
+}
+
+.app-bg {
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.floating-btn-shadow {
+  box-shadow: 0 10px 30px rgba(244, 143, 177, 0.5);
+}

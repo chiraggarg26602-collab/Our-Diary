@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "diaryId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Diary": {
+      "title": "Diary",
+      "description": "A shared diary between two people.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "diaryName": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "memberNames": { "type": "array", "items": { "type": "string" } },
+        "inviteCode": { "type": "string" },
+        "pinHash": { "type": "string" },
+        "backgroundImage": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "diaryName", "createdBy", "members", "createdAt", "pinHash"]
+    },
+    "DiaryEntry": {
+      "title": "DiaryEntry",
+      "description": "A shared memory between two partners.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "mood": { "type": "string" },
+        "imageUrls": { "type": "array", "items": { "type": "string" } },
+        "stickers": { "type": "array", "items": { "type": "string" } },
+        "isFavorite": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "authorId", "mood", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles."
+    },
+    "diaries/{diaryId}": {
+      "schema": "Diary",
+      "description": "Shared diary metadata."
+    },
+    "diaries/{diaryId}/entries/{entryId}": {
+      "schema": "DiaryEntry",
+      "description": "Collection of romantic shared memories."
+    }
+  }
+}

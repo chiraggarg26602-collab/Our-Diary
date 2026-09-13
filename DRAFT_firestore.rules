@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Whitelist for the couple
+    function isChirag() {
+      return isVerified() && request.auth.token.email == "chiraggarg2662002@gmail.com";
+    }
+    function isSneha() {
+      return isVerified() && request.auth.token.email == "sneha@example.com";
+    }
+
+    function isPartner() {
+      return isChirag() || isSneha();
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity validation: DiaryEntry
+    function isValidDiaryEntry(data) {
+      return data.keys().hasAll(['text', 'author', 'mood', 'createdAt', 'isFavorite', 'imageUrls', 'stickers']) &&
+             data.keys().size() == 7 &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 10000 &&
+             data.author in ['Chirag', 'Sneha'] &&
+             data.mood is string && data.mood.size() <= 50 &&
+             data.imageUrls is list && data.imageUrls.size() <= 10 &&
+             data.stickers is list && data.stickers.size() <= 20 &&
+             data.isFavorite is bool &&
+             (data.createdAt == request.time || data.createdAt == existing().createdAt);
+    }
+
+    match /entries/{entryId} {
+      // 8. Secure List Queries
+      allow read: if isPartner() && isValidId(entryId);
+      allow list: if isPartner();
+      
+      allow create: if isPartner() && isValidId(entryId) && isValidDiaryEntry(incoming()) && 
+                    incoming().createdAt == request.time &&
+                    ((isChirag() && incoming().author == 'Chirag') || (isSneha() && incoming().author == 'Sneha'));
+      
+      allow update: if isPartner() && isValidId(entryId) && isValidDiaryEntry(incoming()) && (
+        // Action: Toggle Favorite
+        (incoming().diff(existing()).affectedKeys().hasOnly(['isFavorite'])) ||
+        // Action: Edit content (Author and CreatedAt are immutable)
+        (incoming().author == existing().author && 
+         incoming().createdAt == existing().createdAt &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['text', 'mood', 'imageUrls', 'stickers']))
+      );
+
+      // Only the author can delete their own entries (optional strictness)
+      // For a shared diary, we might allow both to delete.
+      allow delete: if isPartner() && isValidId(entryId);
+    }
+  }
+}
