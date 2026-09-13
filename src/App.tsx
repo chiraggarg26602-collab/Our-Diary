@@ -20,12 +20,18 @@ import {
   Plus, 
   Settings,
   Loader2,
-  Users
+  Users,
+  Copy,
+  Check,
+  ExternalLink,
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
+import firebaseConfig from '../firebase-applet-config.json';
 
 export default function App() {
-  const { user, profile, loading, isLoggingIn, authError, clearAuthError, login, logout } = useAuth();
+  const { user, profile, loading, isLoggingIn, authError, authErrorCode, clearAuthError, login, loginAsGuest, logout } = useAuth();
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [diaryData, setDiaryData] = useState<any>(null);
@@ -34,6 +40,7 @@ export default function App() {
   const [selectedEntry, setSelectedEntry] = useState<DiaryEntry | null>(null);
   const [backgroundUrl, setBackgroundUrl] = useState('https://i.pinimg.com/736x/80/4f/7b/804f7bf1516e4533031023778a48378d.jpg');
   const [selectedMonth, setSelectedMonth] = useState<Date | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
 
   const [showBanner, setShowBanner] = useState(true);
 
@@ -104,12 +111,12 @@ export default function App() {
             id="google-login-btn"
             onClick={() => login()}
             disabled={isLoggingIn}
-            className="w-full bg-pink-400 text-white py-4 rounded-full font-bold shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-60 disabled:pointer-events-none cursor-pointer"
+            className="w-full bg-pink-400 hover:bg-pink-500 text-white py-4 rounded-full font-bold shadow-xl hover:scale-102 active:scale-98 transition-all flex items-center justify-center gap-3 disabled:opacity-60 disabled:pointer-events-none cursor-pointer"
           >
             {isLoggingIn ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin text-white" />
-                <span>Opening Google Sign-In...</span>
+                <span>Signing in...</span>
               </>
             ) : (
               <>
@@ -118,7 +125,103 @@ export default function App() {
               </>
             )}
           </button>
-          {authError && (
+
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <div className="h-px bg-pink-200/80 flex-1" />
+            <span className="text-[10px] typewriter uppercase tracking-widest text-pink-400 font-bold">or</span>
+            <div className="h-px bg-pink-200/80 flex-1" />
+          </div>
+
+          <button
+            id="guest-login-btn"
+            type="button"
+            onClick={() => loginAsGuest()}
+            disabled={isLoggingIn}
+            className="mt-3 w-full bg-white/90 border-2 border-pink-100 hover:border-pink-300 text-pink-800 py-3.5 rounded-full font-bold shadow-sm hover:shadow-md active:scale-98 transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-60 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-pink-400" />
+            <span>Continue as Guest</span>
+          </button>
+
+          {authErrorCode === 'auth/unauthorized-domain' ? (
+            <div className="mt-6 text-left p-4 bg-amber-50/95 border-2 border-amber-200 rounded-3xl text-amber-900 shadow-sm space-y-3">
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-xs text-amber-950 uppercase tracking-wider">Domain Authorization Required</h3>
+                  <p className="text-xs text-amber-800/90 mt-1 leading-relaxed">
+                    Firebase Authentication requires this domain to be listed in <strong>Authorized domains</strong> before Google Sign-In will succeed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white/90 p-2.5 rounded-2xl border border-amber-200 flex items-center justify-between gap-2">
+                <span className="font-mono text-[11px] text-amber-950 truncate select-all px-1">
+                  {typeof window !== 'undefined' ? window.location.hostname : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      navigator.clipboard.writeText(window.location.hostname);
+                      setCopiedDomain(true);
+                      setTimeout(() => setCopiedDomain(false), 2000);
+                    }
+                  }}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer"
+                >
+                  {copiedDomain ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-emerald-700">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="text-[11px] text-amber-800/90 space-y-1">
+                <div className="font-semibold">How to fix in 30 seconds:</div>
+                <ol className="list-decimal pl-4 space-y-0.5">
+                  <li>Open your Firebase Console Auth Settings</li>
+                  <li>Click <strong>Authorized domains</strong> &gt; <strong>Add domain</strong></li>
+                  <li>Paste the domain above and click <strong>Add</strong></li>
+                </ol>
+              </div>
+
+              <div className="pt-1 flex flex-col gap-2">
+                <a
+                  href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/settings`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <span>Open Firebase Auth Settings</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => login()}
+                    className="flex-1 py-2 px-2 bg-white hover:bg-amber-50 border border-amber-300 text-amber-900 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    Retry Login
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => loginAsGuest()}
+                    className="flex-1 py-2 px-2 bg-pink-100 hover:bg-pink-200 text-pink-800 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                  >
+                    Enter as Guest
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : authError ? (
             <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl flex items-center justify-between text-left">
               <span>{authError}</span>
               <button 
@@ -129,7 +232,7 @@ export default function App() {
                 ✕
               </button>
             </div>
-          )}
+          ) : null}
         </motion.div>
       </div>
     );

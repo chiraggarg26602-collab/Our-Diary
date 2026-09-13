@@ -3,10 +3,11 @@ import {
   onAuthStateChanged, 
   User, 
   signInWithPopup, 
+  signInAnonymously,
   signOut 
 } from 'firebase/auth';
 import { auth, googleProvider, db } from './firebase';
-import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
 interface UserProfile {
   uid: string;
@@ -23,8 +24,11 @@ interface AuthContextType {
   loading: boolean;
   isLoggingIn: boolean;
   authError: string | null;
+  authErrorCode: string | null;
   clearAuthError: () => void;
   login: () => Promise<void>;
+  loginAsGuest: () => Promise<void>;
+  updateProfileName: (name: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -36,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authErrorCode, setAuthErrorCode] = useState<string | null>(null);
 
   useEffect(() => {
     let unsubscribeProfile: (() => void) | null = null;
@@ -81,16 +86,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const clearAuthError = () => setAuthError(null);
+  const clearAuthError = () => {
+    setAuthError(null);
+    setAuthErrorCode(null);
+  };
 
   const login = async () => {
     if (isLoggingIn) return;
     setIsLoggingIn(true);
     setAuthError(null);
+    setAuthErrorCode(null);
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       const code = error?.code || '';
+      setAuthErrorCode(code);
       if (
         code === 'auth/cancelled-popup-request' ||
         code === 'auth/popup-closed-by-user'
@@ -101,12 +111,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const msg = 'Popup was blocked by your browser. Please allow popups or open in a new tab.';
         console.warn(msg);
         setAuthError(msg);
+      } else if (code === 'auth/unauthorized-domain') {
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'current domain';
+        const msg = `This domain (${host}) is not in your Firebase Authorized Domains list.`;
+        console.warn(msg, error);
+        setAuthError(msg);
       } else {
         console.error('Login failed:', error);
         setAuthError(error?.message || 'Login failed. Please try again.');
       }
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const loginAsGuest = async () => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
+    setAuthError(null);
+    setAuthErrorCode(null);
+    try {
+      await signInAnonymously(auth);
+    } catch (error: any) {
+      console.error('Guest login failed:', error);
+      setAuthErrorCode(error?.code || 'auth/guest-failed');
+      setAuthError(error?.message || 'Guest sign-in is not enabled in Firebase.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const updateProfileName = async (newName: string) => {
+    if (!user || !newName.trim()) return;
+    const trimmed = newName.trim();
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await updateDoc(userDocRef, {
+        name: trimmed,
+        lastUpdated: serverTimestamp(),
+      });
+      setProfile((prev) => (prev ? { ...prev, name: trimmed } : null));
+    } catch (err) {
+      console.error('Failed to update name:', err);
     }
   };
 
@@ -119,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isLoggingIn, authError, clearAuthError, login, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, isLoggingIn, authError, authErrorCode, clearAuthError, login, loginAsGuest, updateProfileName, logout }}>
       {children}
     </AuthContext.Provider>
   );

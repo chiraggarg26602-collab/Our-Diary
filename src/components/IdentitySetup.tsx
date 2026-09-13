@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, Plus, Users, ArrowRight, Loader2, Link as LinkIcon, Book, Lock, Copy, Check, Sparkles } from 'lucide-react';
+import { Heart, Plus, Users, ArrowRight, Loader2, Link as LinkIcon, Book, Lock, Copy, Check, Sparkles, Edit3 } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { diaryService } from '../lib/diaryService';
 
 export const IdentitySetup: React.FC = () => {
-  const { profile, logout } = useAuth();
+  const { profile, updateProfileName, logout } = useAuth();
   const [mode, setMode] = useState<'selection' | 'create' | 'join' | 'success'>('selection');
   const [diaryName, setDiaryName] = useState('');
   const [pin, setPin] = useState('');
@@ -15,6 +15,8 @@ export const IdentitySetup: React.FC = () => {
   const [createdCode, setCreatedCode] = useState('');
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [userName, setUserName] = useState(profile?.name && profile.name !== 'Guest' ? profile.name : '');
+  const [isEditingName, setIsEditingName] = useState(profile?.name === 'Guest' || !profile?.name);
 
   const queryInvite = new URLSearchParams(window.location.search).get('invite');
 
@@ -32,7 +34,11 @@ export const IdentitySetup: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const diaryData = await diaryService.createDiary(profile.uid, profile.name, diaryName, pin);
+      const effectiveName = userName.trim() || profile.name || 'Chirag';
+      if (userName.trim() && userName.trim() !== profile.name) {
+        await updateProfileName(userName.trim());
+      }
+      const diaryData = await diaryService.createDiary(profile.uid, effectiveName, diaryName, pin);
       setCreatedCode(diaryData.inviteCode);
       setCreatedId(diaryData.id);
       setMode('success');
@@ -61,7 +67,11 @@ export const IdentitySetup: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      await diaryService.joinDiary(profile.uid, profile.name, inviteCode);
+      const effectiveName = userName.trim() || profile.name || 'Sneha';
+      if (userName.trim() && userName.trim() !== profile.name) {
+        await updateProfileName(userName.trim());
+      }
+      await diaryService.joinDiary(profile.uid, effectiveName, inviteCode);
       // Real-time observer in AuthContext will update profile.diaryId 
       // which triggers App.tsx to switch from IdentitySetup to the Diary view.
     } catch (err: any) {
@@ -103,9 +113,50 @@ export const IdentitySetup: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h1 className="serif-display text-4xl md:text-5xl text-pink-900">Welcome, {profile?.name?.split(' ')[0]}</h1>
-                <p className="typewriter text-base opacity-60 italic">"A thousand miles begins with a shared secret."</p>
+              <div className="space-y-3">
+                {isEditingName ? (
+                  <div className="flex flex-col items-center gap-2 max-w-xs mx-auto">
+                    <label className="typewriter text-[11px] uppercase tracking-wider font-bold opacity-60">Your Display Name</label>
+                    <div className="flex items-center gap-2 w-full">
+                      <input
+                        type="text"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        placeholder="e.g. Chirag or Sneha"
+                        className="w-full bg-white border-2 border-pink-200 px-4 py-2.5 rounded-2xl text-sm typewriter text-center focus:border-pink-400 outline-none shadow-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (userName.trim()) {
+                            await updateProfileName(userName.trim());
+                          }
+                          setIsEditingName(false);
+                        }}
+                        className="px-4 py-2.5 bg-pink-400 hover:bg-pink-500 text-white rounded-2xl text-xs font-bold transition-all shrink-0"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-center gap-2">
+                      <h1 className="serif-display text-4xl md:text-5xl text-pink-900">
+                        Welcome, {profile?.name && profile.name !== 'Guest' ? profile.name.split(' ')[0] : (userName || 'Partner')}
+                      </h1>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingName(true)}
+                        className="p-1.5 text-pink-300 hover:text-pink-600 rounded-full hover:bg-pink-50 transition-colors"
+                        title="Edit your display name"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="typewriter text-base opacity-60 italic">"A thousand miles begins with a shared secret."</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4 pt-4">
